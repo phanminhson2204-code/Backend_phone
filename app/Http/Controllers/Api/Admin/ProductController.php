@@ -50,30 +50,36 @@ class ProductController extends Controller
 
     public function store(Request $request)
     {
-       $request->validate([
-          'category_id' => 'required|exists:categories,id',
-          'name' => 'required|string|max:255|unique:products,name',
-          'price' => 'required|numeric|min:0',
-          'quantity' => 'required|integer|min:0',
-          'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048', // Validate là FILE ảnh
+        $request->validate([
+            'category_id' => 'required|exists:categories,id',
+            'name' => 'required|string|max:255|unique:products,name',
+            'price' => 'required|numeric|min:0',
+            'quantity' => 'required|integer|min:0',
+            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
         ]);
 
-       $data = $request->all();
-       $data['slug'] = \Illuminate\Support\Str::slug($request->name);
+        $data = $request->all();
+        $data['slug'] = \Illuminate\Support\Str::slug($request->name);
 
-       // Xử lý File ảnh thật
-       if ($request->hasFile('image')) {
-          // Lưu file vào storage/app/public/products
-          $path = $request->file('image')->store('products', 'public');
-          $data['image'] = $path; 
+        // --- FIX LƯU ẢNH TRỰC TIẾP VÀO PUBLIC ---
+        if ($request->hasFile('image')) {
+            $file = $request->file('image');
+            // Tạo tên file duy nhất để không bị trùng
+            $fileName = time() . '_' . $file->getClientOriginalName();
+            
+            // Di chuyển file thẳng vào thư mục backend/public/products
+            $file->move(public_path('products'), $fileName);
+            
+            // Lưu đường dẫn vào database là "products/tên_file"
+            $data['image'] = 'products/' . $fileName;
         }
 
         $product = Product::create($data);
 
         return response()->json([
-          'success' => true,
-          'message' => 'Thêm sản phẩm thành công',
-          'data' => $product
+            'success' => true,
+            'message' => 'Thêm sản phẩm thành công',
+            'data' => $product
         ], 201);
     }
 
@@ -97,43 +103,50 @@ class ProductController extends Controller
 
     public function update(Request $request, string $id)
     {
-       $product = Product::find($id);
+        $product = Product::find($id);
 
         if (!$product) {
-          return response()->json(['success' => false, 'message' => 'Không tìm thấy sản phẩm'], 404);
+            return response()->json(['success' => false, 'message' => 'Không tìm thấy sản phẩm'], 404);
         }
 
         $request->validate([
-          'category_id' => 'required|exists:categories,id',
-          'name' => 'required|string|max:255|unique:products,name,' . $id,
-          'price' => 'required|numeric|min:0',
-          'quantity' => 'required|integer|min:0',
-          'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048', 
+            'category_id' => 'required|exists:categories,id',
+            'name' => 'required|string|max:255|unique:products,name,' . $id,
+            'price' => 'required|numeric|min:0',
+            'quantity' => 'required|integer|min:0',
+            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
         ]);
 
         $data = $request->all();
         $data['slug'] = \Illuminate\Support\Str::slug($request->name);
 
-         // LOGIC XỬ LÝ HÌNH ẢNH
+        // --- FIX CẬP NHẬT ẢNH TRỰC TIẾP VÀO PUBLIC ---
         if ($request->hasFile('image')) {
-          // Xóa ảnh cũ trong thư mục storage
-        if ($product->image && \Storage::disk('public')->exists($product->image)) {
-            \Storage::disk('public')->delete($product->image);
-        }
-        // Lưu ảnh mới
-        $path = $request->file('image')->store('products', 'public');
-        $data['image'] = $path;
+            // Xóa ảnh cũ nếu tồn tại trong public/products
+            if ($product->image) {
+                $oldPath = public_path($product->image);
+                if (file_exists($oldPath)) {
+                    @unlink($oldPath); // Dùng @ để bỏ qua lỗi nếu file không tồn tại thực tế
+                }
+            }
+
+            // Lưu ảnh mới
+            $file = $request->file('image');
+            $fileName = time() . '_' . $file->getClientOriginalName();
+            $file->move(public_path('products'), $fileName);
+            
+            $data['image'] = 'products/' . $fileName;
         } else {
-          // Nếu không chọn file mới, giữ nguyên giá trị ảnh cũ trong DB
-          $data['image'] = $product->image;
+            // Nếu không chọn file mới, giữ nguyên giá trị cũ
+            $data['image'] = $product->image;
         }
 
         $product->update($data);
 
         return response()->json([
-          'success' => true,
-          'message' => 'Cập nhật sản phẩm thành công',
-          'data' => $product
+            'success' => true,
+            'message' => 'Cập nhật sản phẩm thành công',
+            'data' => $product
         ]);
     }
 
