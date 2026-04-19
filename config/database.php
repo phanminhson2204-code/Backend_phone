@@ -34,7 +34,7 @@ return [
             'port' => '3306',
             'database' => 'brwiiejjlt0lykvoskmt',
             'username' => 'uat9gnyku2ezuig7',
-            'password' => 'kqSwULese8yD7o2DkphB',
+            'password' => 'kqSWuLese8yD7o2DkphB',
             'charset' => 'utf8mb4',
             'collation' => 'utf8mb4_unicode_ci',
             'prefix' => '',
