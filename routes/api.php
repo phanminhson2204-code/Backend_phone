@@ -57,16 +57,16 @@ Route::prefix('admin')->group(function () {
 });
 Route::get('/migrate-database', function () {
     try {
-        // Kiểm tra kết nối DB trước
-        DB::connection()->getPdo();
-        
+        // Thêm dòng này để xóa cache cấu hình mà không cần dùng Shell
+        Artisan::call('config:clear'); 
+        Artisan::call('cache:clear');
+
         // Chạy lệnh migrate
-        // --force là bắt buộc khi chạy trên môi trường production/online
         Artisan::call('migrate --force');
         
         return response()->json([
             'status' => 'success',
-            'message' => 'Database đã tạo bảng xong!',
+            'message' => 'Đã xóa cache và tạo bảng thành công!',
             'output' => Artisan::output()
         ]);
     } catch (\Exception $e) {
